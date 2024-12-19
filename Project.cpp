@@ -318,5 +318,7 @@ bool isSafe(int board[SIZE][SIZE], int row, int col, int num)
             }
         }
     }
+    // fifty percent of code
+
     return true;
 }
