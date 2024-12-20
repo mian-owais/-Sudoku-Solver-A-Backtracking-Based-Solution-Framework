@@ -311,12 +311,74 @@ bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int
     return true;
 }
 
-// Placeholder for other functions
 void performanceReport(const vector<vector<int>> &grid)
 {
-    // Placeholder implementation
+    unordered_map<int, unordered_set<int>> rowConstraints;
+    unordered_map<int, unordered_set<int>> colConstraints;
+    unordered_map<int, unordered_set<int>> boxConstraints;
+
+    // Initialize constraints
+    for (int i = 0; i < 9; ++i)
+    {
+        rowConstraints[i] = unordered_set<int>();
+        colConstraints[i] = unordered_set<int>();
+        boxConstraints[i] = unordered_set<int>();
+    }
+
+    // Populate constraints
+    for (int row = 0; row < 9; ++row)
+    {
+        for (int col = 0; col < 9; ++col)
+        {
+            if (grid[row][col] != 0)
+            {
+                rowConstraints[row].insert(grid[row][col]);
+                colConstraints[col].insert(grid[row][col]);
+                boxConstraints[(row / 3) * 3 + col / 3].insert(grid[row][col]);
+            }
+        }
+    }
+
+    vector<vector<int>> gridCopy = grid;
+
+    // Measure execution time
+    auto start = chrono::high_resolution_clock::now();
+    bool solved = solveSudoku(gridCopy, rowConstraints, colConstraints, boxConstraints);
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> duration = end - start;
+
+    // Display performance data
+    cout << "Performance Report:\n";
+    cout << "Execution Time: " << duration.count() << " seconds\n";
+    cout << "Time Complexity: O(9^n), where n is the number of empty cells\n";
+    cout << "Space Complexity: O(n), where n is the number of empty cells\n";
+
+    if (solved)
+    {
+        cout << "Puzzle solved successfully!\n";
+    }
+    else
+    {
+        cout << "Puzzle is unsolvable.\n";
+    }
+
+    // Save performance data for admin's analysis
+    ofstream performanceFile("performance_report.txt", ios::app);
+    if (performanceFile.is_open())
+    {
+        performanceFile << "Execution Time: " << duration.count() << " seconds\n";
+        performanceFile << "Time Complexity: O(9^n), where n is the number of empty cells\n";
+        performanceFile << "Space Complexity: O(n), where n is the number of empty cells\n";
+        performanceFile << "Solved: " << (solved ? "Yes" : "No") << "\n\n";
+        performanceFile.close();
+    }
+    else
+    {
+        cout << "Error opening performance report file.\n";
+    }
 }
 
+// Placeholder for other functions
 void managePuzzles()
 {
     // Placeholder implementation
