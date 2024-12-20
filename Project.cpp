@@ -1,324 +1,328 @@
 #include <iostream>
 #include <vector>
+#include <unordered_set>
+#include <unordered_map>
+#include <stack>
 #include <queue>
-#include <cstdlib>
-#include <ctime>
+#include <fstream>
+#include <algorithm>
+#include <chrono>
+
 using namespace std;
-const int SIZE = 9;
-int sudokuBoard[SIZE][SIZE];
-bool isSafe(int board[SIZE][SIZE], int row, int col, int num);
-void generateSudokuBoard(int difficulty);
-void shuffleRowsWithinBands();
-void shuffleColsWithinStacks();
-void shuffleRowBands();
-void shuffleColStacks();
-void swapRows(int row1, int row2);
-void swapCols(int col1, int col2);
-bool validateBoard(int board[SIZE][SIZE]);
-void printSudokuBoard(int board[SIZE][SIZE]);
-bool solveSudoku(int board[SIZE][SIZE]);
+
+// Function declarations
+void inputPuzzle(vector<vector<int>> &grid);
+void displayGrid(const vector<vector<int>> &grid);
+bool validateGrid(const vector<vector<int>> &grid);
+bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int>> &rowConstraints, unordered_map<int, unordered_set<int>> &colConstraints, unordered_map<int, unordered_set<int>> &boxConstraints);
+void optimizeSolver(vector<vector<int>> &grid);
+void performanceReport(const vector<vector<int>> &grid);
+void managePuzzles();
+void errorHandling(const vector<vector<int>> &grid);
+
 int main()
 {
-    srand(time(0));
-    int difficulty = 1;
-    cout << "Generating Sudoku Board...\n";
-    generateSudokuBoard(difficulty);
-    cout << "Generated Board:\n";
-    printSudokuBoard(sudokuBoard);
-    cout << "Validating Board...\n";
-    if (validateBoard(sudokuBoard))
+    vector<vector<int>> grid(9, vector<int>(9, 0));
+    int choice;
+
+    do
     {
-        cout << "Board is valid!\n";
-    }
-    else
-    {
-        cout << "Board is invalid!\n";
-    }
-    cout << "Attempting to Solve the Sudoku (Work in Progress)...\n";
-    if (solveSudoku(sudokuBoard))
-    {
-        cout << "Solved Sudoku Board:\n";
-        printSudokuBoard(sudokuBoard);
-    }
-    else
-    {
-        cout << "Solution not found or incomplete implementation.\n";
-    }
-    return 0;
-}
-void generateSudokuBoard(int difficulty)
-{
-    int baseBoard[SIZE][SIZE] = {
-        {1, 2, 3, 4, 5, 6, 7, 8, 9},
-        {4, 5, 6, 7, 8, 9, 1, 2, 3},
-        {7, 8, 9, 1, 2, 3, 4, 5, 6},
-        {2, 3, 4, 5, 6, 7, 8, 9, 1},
-        {5, 6, 7, 8, 9, 1, 2, 3, 4},
-        {8, 9, 1, 2, 3, 4, 5, 6, 7},
-        {3, 4, 5, 6, 7, 8, 9, 1, 2},
-        {6, 7, 8, 9, 1, 2, 3, 4, 5},
-        {9, 1, 2, 3, 4, 5, 6, 7, 8}};
-    for (int i = 0; i < SIZE; ++i)
-    {
-        for (int j = 0; j < SIZE; ++j)
+        cout << "Sudoku Solver Menu:\n";
+        cout << "1. Input Puzzle\n";
+        cout << "2. Display Puzzle\n";
+        cout << "3. Solve Puzzle\n";
+        cout << "4. Performance Report\n";
+        cout << "5. Manage Puzzles\n";
+        cout << "6. Exit\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        switch (choice)
         {
-            sudokuBoard[i][j] = baseBoard[i][j];
-        }
-    }
-    for (int i = 0; i < 10; ++i)
-    {
-        shuffleRowsWithinBands();
-        shuffleColsWithinStacks();
-        shuffleRowBands();
-        shuffleColStacks();
-    }
-    int cellsToRemove;
-    if (difficulty == 1)
-    {
-        cellsToRemove = 30;
-    }
-    else if (difficulty == 2)
-    {
-        cellsToRemove = 40;
-    }
-    else if (difficulty == 3)
-    {
-        cellsToRemove = 50;
-    }
-    else
-    {
-        cellsToRemove = 30;
-    }
-    while (cellsToRemove > 0)
-    {
-        int row = rand() % SIZE;
-        int col = rand() % SIZE;
-        if (sudokuBoard[row][col] != 0)
-        {
-            sudokuBoard[row][col] = 0;
-            cellsToRemove--;
-        }
-    }
-}
-void shuffleRowsWithinBands()
-{
-    for (int band = 0; band < SIZE; band += 3)
-    {
-        int row1 = band + rand() % 3;
-        int row2 = band + rand() % 3;
-        swapRows(row1, row2);
-    }
-}
-void shuffleColsWithinStacks()
-{
-    for (int stack = 0; stack < SIZE; stack += 3)
-    {
-        int col1 = stack + rand() % 3;
-        int col2 = stack + rand() % 3;
-        swapCols(col1, col2);
-    }
-}
-void shuffleRowBands()
-{
-    int band1 = (rand() % 3) * 3;
-    int band2 = (rand() % 3) * 3;
-    for (int i = 0; i < 3; ++i)
-    {
-        swapRows(band1 + i, band2 + i);
-    }
-}
-void shuffleColStacks()
-{
-    int stack1 = (rand() % 3) * 3;
-    int stack2 = (rand() % 3) * 3;
-    for (int i = 0; i < 3; ++i)
-    {
-        swapCols(stack1 + i, stack2 + i);
-    }
-}
-void swapRows(int row1, int row2)
-{
-    for (int col = 0; col < SIZE; ++col)
-    {
-        swap(sudokuBoard[row1][col], sudokuBoard[row2][col]);
-    }
-}
-void swapCols(int col1, int col2)
-{
-    for (int row = 0; row < SIZE; ++row)
-    {
-        swap(sudokuBoard[row][col1], sudokuBoard[row][col2]);
-    }
-}
-bool validateBoard(int board[SIZE][SIZE])
-{
-    for (int row = 0; row < SIZE; ++row)
-    {
-        bool seen[SIZE + 1] = {false};
-        for (int col = 0; col < SIZE; ++col)
-        {
-            int num = board[row][col];
-            if (num != 0)
+        case 1:
+            inputPuzzle(grid);
+            break;
+        case 2:
+            displayGrid(grid);
+            break;
+        case 3:
+            if (validateGrid(grid))
             {
-                if (seen[num])
-                {
-                    return false;
-                }
-                seen[num] = true;
-            }
-        }
-    }
-    for (int col = 0; col < SIZE; ++col)
-    {
-        bool seen[SIZE + 1] = {false};
-        for (int row = 0; row < SIZE; ++row)
-        {
-            int num = board[row][col];
-            if (num != 0)
-            {
-                if (seen[num])
-                {
-                    return false;
-                }
-                seen[num] = true;
-            }
-        }
-    }
-    for (int gridRow = 0; gridRow < SIZE; gridRow += 3)
-    {
-        for (int gridCol = 0; gridCol < SIZE; gridCol += 3)
-        {
-            bool seen[SIZE + 1] = {false};
-            for (int row = 0; row < 3; ++row)
-            {
-                for (int col = 0; col < 3; ++col)
-                {
-                    int num = board[gridRow + row][gridCol + col];
-                    if (num != 0)
-                    {
-                        if (seen[num])
-                        {
-                            return false;
-                        }
-                        seen[num] = true;
-                    }
-                }
-            }
-        }
-    }
-    return true;
-}
-void printSudokuBoard(int board[SIZE][SIZE])
-{
-    for (int i = 0; i < SIZE; ++i)
-    {
-        if (i % 3 == 0 && i != 0)
-        {
-            cout << "------+-------+------\n";
-        }
-        for (int j = 0; j < SIZE; ++j)
-        {
-            if (j % 3 == 0 && j != 0)
-            {
-                cout << "| ";
-            }
-            if (board[i][j] == 0)
-            {
-                cout << ". ";
+                optimizeSolver(grid);
+                displayGrid(grid);
             }
             else
             {
-                cout << board[i][j] << " ";
+                cout << "Invalid puzzle.\n";
             }
+            break;
+        case 4:
+            performanceReport(grid);
+            break;
+        case 5:
+            managePuzzles();
+            break;
+        case 6:
+            cout << "Exiting...\n";
+            break;
+        default:
+            cout << "Invalid choice. Please try again.\n";
         }
-        cout << "\n";
-    }
+    } while (choice != 6);
+
+    return 0;
 }
-bool isSafe(int board[SIZE][SIZE], int row, int col, int num)
+
+void inputPuzzle(vector<vector<int>> &grid)
 {
-    for (int i = 0; i < SIZE; ++i)
+    int choice;
+    cout << "Choose input method:\n";
+    cout << "1. Manual input\n";
+    cout << "2. Input from file\n";
+    cout << "Enter your choice: ";
+    cin >> choice;
+
+    if (choice == 1)
     {
-        if (board[row][i] == num)
+        // Manual input
+        cout << "Enter the Sudoku puzzle row by row (use 0 for empty cells):\n";
+        for (int i = 0; i < 9; ++i)
         {
-            return false;
-        }
-    }
-    for (int i = 0; i < SIZE; ++i)
-    {
-        if (board[i][col] == num)
-        {
-            return false;
-        }
-    }
-    int startRow = row - row % 3;
-    int startCol = col - col % 3;
-    for (int i = 0; i < 3; ++i)
-    {
-        for (int j = 0; j < 3; ++j)
-        {
-            if (board[startRow + i][startCol + j] == num)
+            for (int j = 0; j < 9; ++j)
             {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-bool solveSudoku(int board[SIZE][SIZE])
-{
-    for (int row = 0; row < SIZE; ++row)
-    {
-        for (int col = 0; col < SIZE; ++col)
-        {
-            if (board[row][col] == 0)
-            {
-                for (int num = 1; num <= SIZE; ++num)
+                int value;
+                cin >> value;
+                if (value < 0 || value > 9)
                 {
-                    if (isSafe(board, row, col, num))
-                    {
-                        board[row][col] = num;
-                        if (solveSudoku(board))
-                        {
-                            return true;
-                        }
-                        board[row][col] = 0;
-                    }
+                    cout << "Invalid input. Please enter a value between 0 and 9.\n";
+                    return;
                 }
-                return false;
+                grid[i][j] = value;
             }
         }
     }
-    return true;
+    else if (choice == 2)
+    {
+        // Input from file
+        string filename;
+        cout << "Enter the filename: ";
+        cin >> filename;
+        ifstream file(filename);
+        if (!file)
+        {
+            cout << "Error opening file. Please try again.\n";
+            return;
+        }
+        for (int i = 0; i < 9; ++i)
+        {
+            for (int j = 0; j < 9; ++j)
+            {
+                int value;
+                file >> value;
+                if (value < 0 || value > 9)
+                {
+                    cout << "Invalid input in file. Please ensure all values are between 0 and 9.\n";
+                    return;
+                }
+                grid[i][j] = value;
+            }
+        }
+        file.close();
+    }
+    else
+    {
+        cout << "Invalid choice. Please try again.\n";
+    }
 }
-bool isSafe(int board[SIZE][SIZE], int row, int col, int num)
+
+void displayGrid(const vector<vector<int>> &grid)
 {
-    for (int i = 0; i < SIZE; ++i)
+    cout << "Sudoku Grid:\n";
+    for (int i = 0; i < 9; ++i)
     {
-        if (board[row][i] == num)
+        for (int j = 0; j < 9; ++j)
         {
-            return false;
+            if (j % 3 == 0 && j != 0)
+            {
+                cout << " | "; // Add a vertical line every 3 columns
+            }
+            cout << grid[i][j] << " ";
+        }
+        cout << endl;
+        if ((i + 1) % 3 == 0 && i != 8)
+        {
+            cout << "------+-------+------\n"; // Add a horizontal line every 3 rows
         }
     }
-    for (int i = 0; i < SIZE; ++i)
+}
+
+bool validateGrid(const vector<vector<int>> &grid)
+{
+    // Check if the grid is 9x9
+    if (grid.size() != 9 || grid[0].size() != 9)
     {
-        if (board[i][col] == num)
-        {
-            return false;
-        }
+        return false;
     }
-    int startRow = row - row % 3;
-    int startCol = col - col % 3;
-    for (int i = 0; i < 3; ++i)
+
+    // Check for duplicates in rows and columns
+    for (int i = 0; i < 9; ++i)
     {
-        for (int j = 0; j < 3; ++j)
+        unordered_set<int> rowSet;
+        unordered_set<int> colSet;
+        for (int j = 0; j < 9; ++j)
         {
-            if (board[startRow + i][startCol + j] == num)
+            int rowValue = grid[i][j];
+            int colValue = grid[j][i];
+            if (rowValue != 0 && rowSet.count(rowValue))
             {
                 return false;
             }
+            if (colValue != 0 && colSet.count(colValue))
+            {
+                return false;
+            }
+            rowSet.insert(rowValue);
+            colSet.insert(colValue);
         }
     }
-    // fifty percent of code
+
+    // Check for duplicates in 3x3 subgrids
+    for (int i = 0; i < 9; i += 3)
+    {
+        for (int j = 0; j < 9; j += 3)
+        {
+            unordered_set<int> subgridSet;
+            for (int k = 0; k < 3; ++k)
+            {
+                for (int l = 0; l < 3; ++l)
+                {
+                    int value = grid[i + k][j + l];
+                    if (value != 0 && subgridSet.count(value))
+                    {
+                        return false;
+                    }
+                    subgridSet.insert(value);
+                }
+            }
+        }
+    }
 
     return true;
+}
+
+bool isSafe(const vector<vector<int>> &grid, const unordered_map<int, unordered_set<int>> &rowConstraints, const unordered_map<int, unordered_set<int>> &colConstraints, const unordered_map<int, unordered_set<int>> &boxConstraints, int row, int col, int num)
+{
+    int boxIndex = (row / 3) * 3 + col / 3;
+    return rowConstraints.at(row).count(num) == 0 &&
+           colConstraints.at(col).count(num) == 0 &&
+           boxConstraints.at(boxIndex).count(num) == 0;
+}
+
+void optimizeSolver(vector<vector<int>> &grid)
+{
+    unordered_map<int, unordered_set<int>> rowConstraints;
+    unordered_map<int, unordered_set<int>> colConstraints;
+    unordered_map<int, unordered_set<int>> boxConstraints;
+
+    // Initialize constraints
+    for (int i = 0; i < 9; ++i)
+    {
+        rowConstraints[i] = unordered_set<int>();
+        colConstraints[i] = unordered_set<int>();
+        boxConstraints[i] = unordered_set<int>();
+    }
+
+    // Populate constraints
+    for (int row = 0; row < 9; ++row)
+    {
+        for (int col = 0; col < 9; ++col)
+        {
+            if (grid[row][col] != 0)
+            {
+                rowConstraints[row].insert(grid[row][col]);
+                colConstraints[col].insert(grid[row][col]);
+                boxConstraints[(row / 3) * 3 + col / 3].insert(grid[row][col]);
+            }
+        }
+    }
+
+    // Solve the puzzle using the optimized solver
+    solveSudoku(grid, rowConstraints, colConstraints, boxConstraints);
+}
+
+bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int>> &rowConstraints, unordered_map<int, unordered_set<int>> &colConstraints, unordered_map<int, unordered_set<int>> &boxConstraints)
+{
+    vector<pair<int, int>> emptyCells;
+
+    // Collect all empty cells
+    for (int row = 0; row < 9; ++row)
+    {
+        for (int col = 0; col < 9; ++col)
+        {
+            if (grid[row][col] == 0)
+            {
+                emptyCells.push_back({row, col});
+            }
+        }
+    }
+
+    // Sort empty cells by the number of possible values (MRV heuristic)
+    sort(emptyCells.begin(), emptyCells.end(), [&](const pair<int, int> &a, const pair<int, int> &b)
+         {
+        int countA = 0, countB = 0;
+        for (int num = 1; num <= 9; ++num) {
+            if (isSafe(grid, rowConstraints, colConstraints, boxConstraints, a.first, a.second, num)) {
+                countA++;
+            }
+            if (isSafe(grid, rowConstraints, colConstraints, boxConstraints, b.first, b.second, num)) {
+                countB++;
+            }
+        }
+        return countA < countB; });
+
+    // Try to fill the empty cells
+    for (const auto &cell : emptyCells)
+    {
+        int row = cell.first;
+        int col = cell.second;
+        if (grid[row][col] == 0)
+        {
+            for (int num = 1; num <= 9; ++num)
+            {
+                if (isSafe(grid, rowConstraints, colConstraints, boxConstraints, row, col, num))
+                {
+                    grid[row][col] = num;
+                    rowConstraints[row].insert(num);
+                    colConstraints[col].insert(num);
+                    boxConstraints[(row / 3) * 3 + col / 3].insert(num);
+                    if (solveSudoku(grid, rowConstraints, colConstraints, boxConstraints))
+                    {
+                        return true;
+                    }
+                    grid[row][col] = 0; // Backtrack
+                    rowConstraints[row].erase(num);
+                    colConstraints[col].erase(num);
+                    boxConstraints[(row / 3) * 3 + col / 3].erase(num);
+                }
+            }
+            return false;
+        }
+    }
+    return true;
+}
+
+// Placeholder for other functions
+void performanceReport(const vector<vector<int>> &grid)
+{
+    // Placeholder implementation
+}
+
+void managePuzzles()
+{
+    // Placeholder implementation
+}
+
+void errorHandling(const vector<vector<int>> &grid)
+{
+    // Placeholder implementation
 }
