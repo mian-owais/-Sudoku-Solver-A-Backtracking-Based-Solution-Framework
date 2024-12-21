@@ -7,14 +7,18 @@
 #include <fstream>
 #include <algorithm>
 #include <chrono>
+#include <ctime>
+#include <sstream>
+#include <iomanip> // Include this header
 
 using namespace std;
+using namespace std::chrono;
 
 // Function declarations
 void inputPuzzle(vector<vector<int>> &grid);
 void displayGrid(const vector<vector<int>> &grid);
 bool validateGrid(const vector<vector<int>> &grid);
-bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int>> &rowConstraints, unordered_map<int, unordered_set<int>> &colConstraints, unordered_map<int, unordered_set<int>> &boxConstraints);
+bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int>> &rowConstraints, unordered_map<int, unordered_set<int>> &colConstraints, unordered_map<int, unordered_set<int>> &boxConstraints, bool &unsolvable);
 void optimizeSolver(vector<vector<int>> &grid);
 void performanceReport(const vector<vector<int>> &grid);
 void managePuzzles();
@@ -48,8 +52,13 @@ int main()
         case 3:
             if (validateGrid(grid))
             {
+                bool unsolvable = false;
                 optimizeSolver(grid);
-                displayGrid(grid);
+                errorHandling(grid);
+                if (!unsolvable)
+                {
+                    displayGrid(grid);
+                }
             }
             else
             {
@@ -247,10 +256,15 @@ void optimizeSolver(vector<vector<int>> &grid)
     }
 
     // Solve the puzzle using the optimized solver
-    solveSudoku(grid, rowConstraints, colConstraints, boxConstraints);
+    bool unsolvable = false;
+    solveSudoku(grid, rowConstraints, colConstraints, boxConstraints, unsolvable);
+    if (unsolvable)
+    {
+        cout << "The puzzle is unsolvable.\n";
+    }
 }
 
-bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int>> &rowConstraints, unordered_map<int, unordered_set<int>> &colConstraints, unordered_map<int, unordered_set<int>> &boxConstraints)
+bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int>> &rowConstraints, unordered_map<int, unordered_set<int>> &colConstraints, unordered_map<int, unordered_set<int>> &boxConstraints, bool &unsolvable)
 {
     vector<pair<int, int>> emptyCells;
 
@@ -269,16 +283,19 @@ bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int
     // Sort empty cells by the number of possible values (MRV heuristic)
     sort(emptyCells.begin(), emptyCells.end(), [&](const pair<int, int> &a, const pair<int, int> &b)
          {
-        int countA = 0, countB = 0;
-        for (int num = 1; num <= 9; ++num) {
-            if (isSafe(grid, rowConstraints, colConstraints, boxConstraints, a.first, a.second, num)) {
-                countA++;
-            }
-            if (isSafe(grid, rowConstraints, colConstraints, boxConstraints, b.first, b.second, num)) {
-                countB++;
-            }
-        }
-        return countA < countB; });
+             int countA = 0, countB = 0;
+             for (int num = 1; num <= 9; ++num)
+             {
+                 if (isSafe(grid, rowConstraints, colConstraints, boxConstraints, a.first, a.second, num))
+                 {
+                     countA++;
+                 }
+                 if (isSafe(grid, rowConstraints, colConstraints, boxConstraints, b.first, b.second, num))
+                 {
+                     countB++;
+                 }
+             }
+             return countA < countB; });
 
     // Try to fill the empty cells
     for (const auto &cell : emptyCells)
@@ -295,7 +312,7 @@ bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int
                     rowConstraints[row].insert(num);
                     colConstraints[col].insert(num);
                     boxConstraints[(row / 3) * 3 + col / 3].insert(num);
-                    if (solveSudoku(grid, rowConstraints, colConstraints, boxConstraints))
+                    if (solveSudoku(grid, rowConstraints, colConstraints, boxConstraints, unsolvable))
                     {
                         return true;
                     }
@@ -305,6 +322,7 @@ bool solveSudoku(vector<vector<int>> &grid, unordered_map<int, unordered_set<int
                     boxConstraints[(row / 3) * 3 + col / 3].erase(num);
                 }
             }
+            unsolvable = true;
             return false;
         }
     }
@@ -342,10 +360,11 @@ void performanceReport(const vector<vector<int>> &grid)
     vector<vector<int>> gridCopy = grid;
 
     // Measure execution time
-    auto start = chrono::high_resolution_clock::now();
-    bool solved = solveSudoku(gridCopy, rowConstraints, colConstraints, boxConstraints);
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> duration = end - start;
+    auto start = high_resolution_clock::now();
+    bool unsolvable = false;
+    bool solved = solveSudoku(gridCopy, rowConstraints, colConstraints, boxConstraints, unsolvable);
+    auto end = high_resolution_clock::now();
+    duration<double> duration = end - start;
 
     // Display performance data
     cout << "Performance Report:\n";
@@ -378,13 +397,263 @@ void performanceReport(const vector<vector<int>> &grid)
     }
 }
 
-// Placeholder for other functions
+struct PuzzleRecord
+{
+    vector<vector<int>> grid;
+    string timestamp;
+    bool solved;
+};
+
+vector<PuzzleRecord> puzzleDatabase;
+
+string currentDateTime()
+{
+    auto now = system_clock::now();
+    auto in_time_t = system_clock::to_time_t(now);
+    struct tm *timeinfo = localtime(&in_time_t);
+    stringstream ss;
+    ss << put_time(timeinfo, "%Y-%m-%d %H:%M:%S");
+    return ss.str();
+}
+
+void saveDatabase()
+{
+    ofstream databaseFile("puzzle_database.txt");
+    if (databaseFile.is_open())
+    {
+        for (const auto &record : puzzleDatabase)
+        {
+            databaseFile << record.timestamp << "\n";
+            for (const auto &row : record.grid)
+            {
+                for (const auto &cell : row)
+                {
+                    databaseFile << cell << " ";
+                }
+                databaseFile << "\n";
+            }
+            databaseFile << (record.solved ? "Solved" : "Unsolved") << "\n";
+        }
+        databaseFile.close();
+    }
+    else
+    {
+        cout << "Error opening database file.\n";
+    }
+}
+
+void loadDatabase()
+{
+    ifstream databaseFile("puzzle_database.txt");
+    if (databaseFile.is_open())
+    {
+        string line;
+        while (getline(databaseFile, line))
+        {
+            PuzzleRecord record;
+            record.timestamp = line;
+            record.grid = vector<vector<int>>(9, vector<int>(9, 0));
+            for (int i = 0; i < 9; ++i)
+            {
+                getline(databaseFile, line);
+                stringstream ss(line);
+                int value;
+                for (int j = 0; j < 9; ++j)
+                {
+                    ss >> value;
+                    record.grid[i][j] = value;
+                }
+            }
+            getline(databaseFile, line);
+            record.solved = (line == "Solved");
+            puzzleDatabase.push_back(record);
+        }
+        databaseFile.close();
+    }
+    else
+    {
+        cout << "Error opening database file.\n";
+    }
+}
+
+void displayDatabase()
+{
+    cout << "Puzzle Database:\n";
+    for (const auto &record : puzzleDatabase)
+    {
+        cout << "Timestamp: " << record.timestamp << "\n";
+        cout << "Status: " << (record.solved ? "Solved" : "Unsolved") << "\n";
+        displayGrid(record.grid);
+        cout << "------------------------\n";
+    }
+}
+
 void managePuzzles()
 {
-    // Placeholder implementation
+    loadDatabase();
+    int choice;
+    do
+    {
+        cout << "Puzzle Management Menu:\n";
+        cout << "1. Load Puzzle\n";
+        cout << "2. Display Database\n";
+        cout << "3. Delete Puzzle\n";
+        cout << "4. Update Puzzle\n";
+        cout << "5. Exit\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        switch (choice)
+        {
+        case 1:
+        {
+            string filename;
+            cout << "Enter the filename: ";
+            cin >> filename;
+            ifstream file(filename);
+            if (!file)
+            {
+                cout << "Error opening file. Please try again.\n";
+                break;
+            }
+            vector<vector<int>> grid(9, vector<int>(9, 0));
+            for (int i = 0; i < 9; ++i)
+            {
+                for (int j = 0; j < 9; ++j)
+                {
+                    int value;
+                    file >> value;
+                    if (value < 0 || value > 9)
+                    {
+                        cout << "Invalid input in file. Please ensure all values are between 0 and 9.\n";
+                        file.close();
+                        return;
+                    }
+                    grid[i][j] = value;
+                }
+            }
+            file.close();
+            PuzzleRecord record;
+            record.grid = grid;
+            record.timestamp = currentDateTime();
+            record.solved = false;
+            puzzleDatabase.push_back(record);
+            saveDatabase();
+            cout << "Puzzle loaded successfully!\n";
+            break;
+        }
+        case 2:
+            displayDatabase();
+            break;
+        case 3:
+        {
+            int index;
+            cout << "Enter the index of the puzzle to delete: ";
+            cin >> index;
+            if (index >= 0 && index < puzzleDatabase.size())
+            {
+                puzzleDatabase.erase(puzzleDatabase.begin() + index);
+                saveDatabase();
+                cout << "Puzzle deleted successfully!\n";
+            }
+            else
+            {
+                cout << "Invalid index. Please try again.\n";
+            }
+            break;
+        }
+        case 4:
+        {
+            int index;
+            cout << "Enter the index of the puzzle to update: ";
+            cin >> index;
+            if (index >= 0 && index < puzzleDatabase.size())
+            {
+                string filename;
+                cout << "Enter the filename: ";
+                cin >> filename;
+                ifstream file(filename);
+                if (!file)
+                {
+                    cout << "Error opening file. Please try again.\n";
+                    break;
+                }
+                vector<vector<int>> grid(9, vector<int>(9, 0));
+                for (int i = 0; i < 9; ++i)
+                {
+                    for (int j = 0; j < 9; ++j)
+                    {
+                        int value;
+                        file >> value;
+                        if (value < 0 || value > 9)
+                        {
+                            cout << "Invalid input in file. Please ensure all values are between 0 and 9.\n";
+                            file.close();
+                            return;
+                        }
+                        grid[i][j] = value;
+                    }
+                }
+                file.close();
+                puzzleDatabase[index].grid = grid;
+                puzzleDatabase[index].timestamp = currentDateTime();
+                puzzleDatabase[index].solved = false;
+                saveDatabase();
+                cout << "Puzzle updated successfully!\n";
+            }
+            else
+            {
+                cout << "Invalid index. Please try again.\n";
+            }
+            break;
+        }
+        case 5:
+            cout << "Exiting...\n";
+            break;
+        default:
+            cout << "Invalid choice. Please try again.\n";
+        }
+    } while (choice != 5);
 }
 
 void errorHandling(const vector<vector<int>> &grid)
 {
-    // Placeholder implementation
+    unordered_map<int, unordered_set<int>> rowConstraints;
+    unordered_map<int, unordered_set<int>> colConstraints;
+    unordered_map<int, unordered_set<int>> boxConstraints;
+
+    // Initialize constraints
+    for (int i = 0; i < 9; ++i)
+    {
+        rowConstraints[i] = unordered_set<int>();
+        colConstraints[i] = unordered_set<int>();
+        boxConstraints[i] = unordered_set<int>();
+    }
+
+    // Populate constraints
+    for (int row = 0; row < 9; ++row)
+    {
+        for (int col = 0; col < 9; ++col)
+        {
+            if (grid[row][col] != 0)
+            {
+                rowConstraints[row].insert(grid[row][col]);
+                colConstraints[col].insert(grid[row][col]);
+                boxConstraints[(row / 3) * 3 + col / 3].insert(grid[row][col]);
+            }
+        }
+    }
+
+    vector<vector<int>> gridCopy = grid;
+    bool unsolvable = false;
+    bool solved = solveSudoku(gridCopy, rowConstraints, colConstraints, boxConstraints, unsolvable);
+
+    if (unsolvable)
+    {
+        cout << "Error: The puzzle is unsolvable.\n";
+    }
+    else if (!solved)
+    {
+        cout << "Error: The puzzle could not be solved.\n";
+    }
 }
